@@ -1,0 +1,1 @@
+# embeddings-to-pinecone-mssql
