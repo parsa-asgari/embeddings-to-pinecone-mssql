@@ -1,0 +1,9 @@
+pyodbc
+openai
+pinecone
+langchain
+langchain-community
+python-dotenv
+beautifulsoup4
+tiktoken
+langchain-pinecone
