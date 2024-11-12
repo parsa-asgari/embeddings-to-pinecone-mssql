@@ -25,8 +25,8 @@ vector_store = PineconeVectorStore.from_existing_index(index_name=index_name, em
 
 
 results = vector_store.similarity_search(
-    "integration",
-    k=2,
+    "does findaso have any solution for Property Recommender ",
+    k=1,
 )
 for res in results:
     print(f"* {res.page_content} [{res.metadata}]")

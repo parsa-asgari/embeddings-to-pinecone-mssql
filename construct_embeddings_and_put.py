@@ -7,6 +7,8 @@ from bs4 import BeautifulSoup
 
 
 MAIN_SOLUTIONS_QUERY = """
+--- Findaso Solution content reconstruction query
+
 with pricing_option_cte as (
 SELECT a.Id, a.title, a.Abstract, a.Description, a.keywords, a.ReadySolutionId, STRING_AGG(c.title, ', ') as pricing_options
 from findasoc_MainDB.findasomaster.ReadySolutionLanguage a  
@@ -30,10 +32,22 @@ from findasoc_MainDB.findasomaster.ReadySolutionLanguage a
 FULL JOIN findasoc_MainDB.dbo.ReadySolutionTypeLinks f on f.ReadySolutionId = a.ReadySolutionId
 FULL JOIN findasoc_MainDB.ReadySolution.ReadySolutionTypes g on g.Id = f.ReadySolutionTypeId
 GROUP BY a.Id, a.title, a.Abstract, a.Description, a.keywords, a.ReadySolutionId
+),
+active_sales_centers as (
+SELECT ReadySolutionId, STRING_AGG(b.Country, ',') as sales_centers from findasoc_MainDB.[ReadySolution].[SalesPartnerLinks] a
+join findasoc_MainDB.[Company].[Company] b on a.SalesPartnerId = b.Id
+GROUP BY ReadySolutionId
+),
+origin_countries as (
+select a.ReadySolutionId, c.Country from findasoc_MainDB.findasomaster.ReadySolutionLanguage a
+JOIN findasoc_MainDB.[ReadySolution].[ReadySolutions] b on a.ReadySolutionId = b.Id
+JOIN findasoc_MainDB.[Company].[Company] c on b.CompanyId = c.Id
 )
-select a.Id, a.title, a.Abstract, a.Description, a.Keywords, a.pricing_options, b.customer_types, c.solution_types from pricing_option_cte a
+select distinct a.Id, a.title, a.Abstract, a.Description, a.Keywords, a.pricing_options, b.customer_types, c.solution_types, e.Country as country , d.sales_centers, CONCAT('https://www.findaso.com/ready-solution/',a.ReadySolutionId) as link from pricing_option_cte a
 FULL join targeted_customers b on a.Id = b.Id
 FULL join solution_types c on a.Id = c.Id
+FULL JOIN active_sales_centers d on a.ReadySolutionId = d.ReadySolutionId
+FULL JOIN origin_countries e on e.ReadySolutionId = a.ReadySolutionId
 where a.Id is not null
 order by Id
 
@@ -68,7 +82,7 @@ def fetch_solutions():
     return posts
 
 # Function to generate Markdown content
-def generate_markdown(title, abstract, description, keywords, pricing_options, customer_types, solution_types):
+def generate_markdown(title, abstract, description, keywords, pricing_options, customer_types, solution_types, country, sales_centers, link):
     abstract_md = None
     description_md = None
     
@@ -98,6 +112,15 @@ def generate_markdown(title, abstract, description, keywords, pricing_options, c
 ## Solution Types
 {solution_types}
 
+## Country
+{country}
+
+## Sales Centers 
+{sales_centers}
+
+## Link
+{link}
+
 """
     return markdown_content
 
@@ -109,8 +132,8 @@ embedder = OpenAIEmbeddings(model="text-embedding-ada-002", api_key=config["OPEN
 solutions = fetch_solutions()
 
 # Process each post
-for idx, (id, title, abstract, description, keywords, pricing_options, customer_types, solution_types) in enumerate(solutions, start=1):
-    markdown_content = generate_markdown(title, abstract, description, keywords, pricing_options, customer_types, solution_types)
+for idx, (id, title, abstract, description, keywords, pricing_options, customer_types, solution_types, country, sales_centers, link) in enumerate(solutions, start=1):
+    markdown_content = generate_markdown(title, abstract, description, keywords, pricing_options, customer_types, solution_types, country, sales_centers, link)
     split_content = markdown_splitter.split_text(markdown_content)
   
     # Only one chunk should exist if the chunk size is large enough
